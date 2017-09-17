@@ -6,18 +6,19 @@ using Eigen::VectorXd;
 using Eigen::MatrixXd;
 using std::vector;
 
+const double Tools::EPS_ = 1e-4;
+const double Tools::PI_ = 3.14159;
+
 Tools::Tools() {}
 
 Tools::~Tools() {}
 
-namespace {
-  const double EPS = 1e-6;
-}
-
 VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
                               const vector<VectorXd> &ground_truth)
 {
+  std::cout << "Estimating RMSE" << std::endl;
   VectorXd rmse(4);
+  rmse << 0, 0, 0, 0;
 
   if (estimations.size() == 0 || estimations.size() != ground_truth.size()) {
     std::cerr << "CalculateRMSE () - Error - Malformed inputs" << endl;
@@ -34,6 +35,7 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
   
   rmse = rmse.array().sqrt();
 
+  std::cout << "RMSE: " << rmse << std::endl;
   return rmse;
 }
 
@@ -51,7 +53,7 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
   float c3 = (c1*c2);
 
   //check division by zero
-  if(std::abs(c1) < EPS){
+  if(std::abs(c1) < EPS_ || std::abs(c2) < EPS_){
     std::cerr << "CalculateJacobian () - Error - Division by Zero" << endl;
     return Hj;
   }

@@ -10,11 +10,10 @@ using Eigen::VectorXd;
 using std::vector;
 
 namespace {
-  const float PI = 3.14159;
   const int noise_ax = 9;
   const int noise_ay = 9;
 
-  float computeProcessCovariance(const float delt, KalmanFilter& ekf)
+  void computeProcessCovariance(const float delt, KalmanFilter& ekf)
   {
     const float t2 = pow(delt, 2);
     const float t3 = pow(delt,3)/2;
@@ -31,7 +30,7 @@ namespace {
       ax4, 0, ax3, 0,
       0, ay4, 0, ay3,
       ax3, 0, ax2, 0,
-      ay3, 0, ay2, 0;
+      0, ay3, 0, ay2;
   }
 }
 
@@ -58,8 +57,6 @@ FusionEKF::FusionEKF()
   H_laser_ <<
     1, 0, 0, 0,
     0, 1, 0, 0;
-
-  std::cout << "FusionEKF construction complete" << std::endl;
 }
 
 void
@@ -67,19 +64,24 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
 {
   VectorXd initialState(4);
   if (measurement.sensor_type_ == MeasurementPackage::LASER) {
-    std::cout << "Initializing using laser measurement" << std::endl;
     // record the initial x and y position
     initialState << measurement.raw_measurements_[0], measurement.raw_measurements_[1], 0, 0;
-    std::cout << "State initialization complete" << std::endl;
   } else { // if (sensorType == MeasurementPackage::RADAR
     std::cout << "Initializing using radar measurement" << std::endl;
     // derive the initial x and y positions from the polar co-ordinates
     const float rho = measurement.raw_measurements_[0];
-    const float phi = measurement.raw_measurements_[1];
-    const float px = rho * cos (phi * PI/180);
-    const float py = rho * sin (phi * PI/180);
-    initialState << px, py;
-    std::cout << "State initialization complete" << std::endl;
+    float phi = measurement.raw_measurements_[1];
+    if (phi > Tools::PI_) {
+      phi -= (2*Tools::PI_);
+    } else if (phi < -Tools::PI_) {
+      phi += (2 * Tools::PI_);
+    }
+    const float px = rho * cos (phi);
+    const float py = rho * sin (phi);
+    initialState << px, py, 0, 0;
+    std::cout << "State initialization complete: " 
+    << "px: " << px << " py: " << py 
+    << std::endl;
 
     // Radar Jacobian matrix (linear approximation of polar to cartesian)
     Hj_ << tools_.CalculateJacobian(ekf_.x_);
@@ -89,16 +91,17 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
    // initialize the state transition matrix
   // this is the first measurement and so delt is 0
   MatrixXd stateTransition(4,4);
-  stateTransition << 1, 0, 0, 0,
+  stateTransition << 
+    1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
     0, 0, 0, 1;
-  std::cout << "State transition initialization complete" << std::endl;
 
   // initialize the state co-variance matrix
   MatrixXd stateCovariance(4,4);
   // we are certain about the position but uncertain about the velocity
-  stateCovariance << 1, 0, 0, 0,
+  stateCovariance << 
+    1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1000, 0,
     0, 0, 0, 1000;
@@ -106,14 +109,14 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
 
   MatrixXd processCovariance(4,4);
   // since delt is 0, this will all be 0s (no acceleration noise)
-  processCovariance << 0, 0, 0, 0,
+  processCovariance << 
+    0, 0, 0, 0,
     0, 0, 0, 0,
     0, 0, 0, 0,
     0, 0, 0, 0;
   std::cout << "Process co-variance initialization complete" << std::endl;
 
   ekf_.Init(initialState, stateCovariance, stateTransition, processCovariance);
-  previous_timestamp_ = measurement.timestamp_;
   std::cout << "Filter initialization complete" << std::endl;
   is_initialized_ = true;
 }
@@ -123,31 +126,40 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
 */
 FusionEKF::~FusionEKF() {}
 
-void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
+void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) 
+{
+  if (measurement_pack.sensor_type_ != MeasurementPackage::LASER) {
+    std::cout << "Ignoring measurement" << std::endl;
+    return;
+  }
 
+  std::cout << "Processing measurement" << std::endl;
+    // delt in secs
+  const float delt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
+  previous_timestamp_ = measurement_pack.timestamp_;
 
   /*****************************************************************************
    *  Initialization
    ****************************************************************************/
   if (!is_initialized_) {
     initFilter(measurement_pack);
+    return;
   }
+
+  std::cout << ">>>>>>>>>>>>>TIMESTEP<<<<<<<<<<<<<<<<<<: " << delt << std::endl;
     
   /*****************************************************************************
    *  Prediction
-   ****************************************************************************/
+   ****************************************************************************/  
 
-  // delt in secs
-  const float delt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
-  
+  // perform the prediction
   // update the state transition matrix to include the delt
   ekf_.F_(0,2) = delt;
   ekf_.F_(1,3) = delt;
   // update the process co-variance
   computeProcessCovariance(delt, ekf_);
-
-  // perform the prediction
   ekf_.Predict();
+  
 
   /*****************************************************************************
    *  Update
@@ -159,11 +171,11 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   } else {
     // use Extended Kalman Filter equations
     // update Jacobian
-    Hj_ << tools_.CalculateJacobian(ekf_.x_);
-    ekf_.UpdateEKF(measurement_pack.raw_measurements_, Hj_, R_radar_);
+    // Hj_ << tools_.CalculateJacobian(ekf_.x_);
+   // ekf_.UpdateEKF(measurement_pack.raw_measurements_, Hj_, R_radar_);
   }
   
   // print the output
-  cout << "x_ = " << ekf_.x_ << endl;
-  cout << "P_ = " << ekf_.P_ << endl;
+  cout << "x_ = \n" << ekf_.x_;
+  cout << "\nP_ = \n" << ekf_.P_ << endl;
 }
