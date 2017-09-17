@@ -47,7 +47,7 @@ void KalmanFilter::UpdateEKF(const VectorXd &z,
   const float vx = x_[2];
   const float vy = x_[3];
   const float rho = sqrt(pow(px,2) + pow(py, 2));
-  const float phi = atan(py/px);
+  const float phi = atan2(py/px);
   const float rhoRate = (px * vx + py * vy) / rho;
   VectorXd polarState(3);
   polarState << rho, phi, rhoRate;
