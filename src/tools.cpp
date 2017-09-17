@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 #include "tools.h"
 
 using Eigen::VectorXd;
@@ -9,17 +10,56 @@ Tools::Tools() {}
 
 Tools::~Tools() {}
 
+namespace {
+  const double EPS = 1e-6;
+}
+
 VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
-                              const vector<VectorXd> &ground_truth) {
-  /**
-  TODO:
-    * Calculate the RMSE here.
-  */
+                              const vector<VectorXd> &ground_truth)
+{
+  VectorXd rmse(4);
+
+  if (estimations.size() == 0 || estimations.size() != ground_truth.size()) {
+    std::cerr << "CalculateRMSE () - Error - Malformed inputs" << endl;
+    return rmse;
+  }
+  
+  for (int i = 0; i < estimations.size(); ++i) {
+    VectorXd residualSum = estimations[i] - ground_truth[i];
+    residualSum = residualSum.array() * residualSum.array();
+    rmse += residualSum;
+  }
+
+  rmse /= estimations.size();
+  
+  rmse = rmse.array().sqrt();
+
+  return rmse;
 }
 
 MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
-  /**
-  TODO:
-    * Calculate a Jacobian here.
-  */
+  MatrixXd Hj(3,4);
+  //recover state parameters
+  float px = x_state(0);
+  float py = x_state(1);
+  float vx = x_state(2);
+  float vy = x_state(3);
+
+  //pre-compute a set of terms to avoid repeated calculation
+  float c1 = px*px + py*py;
+  float c2 = sqrt(c1);
+  float c3 = (c1*c2);
+
+  //check division by zero
+  if(std::abs(c1) < EPS){
+    std::cerr << "CalculateJacobian () - Error - Division by Zero" << endl;
+    return Hj;
+  }
+
+  //compute the Jacobian matrix
+  Hj << (px/c2), (py/c2), 0, 0,
+    -(py/c1), (px/c1), 0, 0,
+    py*(vx*py - vy*px)/c3, px*(px*vy - py*vx)/c3, px/c2, py/c2;
+
+  return Hj;
 }
