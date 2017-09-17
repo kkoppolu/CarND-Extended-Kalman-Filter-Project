@@ -69,7 +69,7 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
   if (measurement.sensor_type_ == MeasurementPackage::LASER) {
     std::cout << "Initializing using laser measurement" << std::endl;
     // record the initial x and y position
-    initialState << measurement.raw_measurements_[0], measurement.raw_measurements_[1];
+    initialState << measurement.raw_measurements_[0], measurement.raw_measurements_[1], 0, 0;
     std::cout << "State initialization complete" << std::endl;
   } else { // if (sensorType == MeasurementPackage::RADAR
     std::cout << "Initializing using radar measurement" << std::endl;
