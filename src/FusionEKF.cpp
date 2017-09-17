@@ -58,6 +58,8 @@ FusionEKF::FusionEKF()
   H_laser_ <<
     1, 0, 0, 0,
     0, 1, 0, 0;
+
+  std::cout << "FusionEKF construction complete" << std::endl;
 }
 
 void
@@ -65,18 +67,23 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
 {
   VectorXd initialState(4);
   if (measurement.sensor_type_ == MeasurementPackage::LASER) {
+    std::cout << "Initializing using laser measurement" << std::endl;
     // record the initial x and y position
     initialState << measurement.raw_measurements_[0], measurement.raw_measurements_[1];
+    std::cout << "State initialization complete" << std::endl;
   } else { // if (sensorType == MeasurementPackage::RADAR
+    std::cout << "Initializing using radar measurement" << std::endl;
     // derive the initial x and y positions from the polar co-ordinates
     const float rho = measurement.raw_measurements_[0];
     const float phi = measurement.raw_measurements_[1];
     const float px = rho * cos (phi * PI/180);
     const float py = rho * sin (phi * PI/180);
     initialState << px, py;
+    std::cout << "State initialization complete" << std::endl;
 
     // Radar Jacobian matrix (linear approximation of polar to cartesian)
     Hj_ << tools_.CalculateJacobian(ekf_.x_);
+    std::cout << "Hj initialization" << std::endl;
   }
 
    // initialize the state transition matrix
@@ -86,6 +93,7 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     0, 1, 0, 0,
     0, 0, 1, 0,
     0, 0, 0, 1;
+  std::cout << "State transition initialization complete" << std::endl;
 
   // initialize the state co-variance matrix
   MatrixXd stateCovariance(4,4);
@@ -94,6 +102,7 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     0, 1, 0, 0,
     0, 0, 1000, 0,
     0, 0, 0, 1000;
+  std::cout << "State co-variance initialization complete" << std::endl;
 
   MatrixXd processCovariance(4,4);
   // since delt is 0, this will all be 0s (no acceleration noise)
@@ -101,8 +110,11 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     0, 0, 0, 0,
     0, 0, 0, 0,
     0, 0, 0, 0;
+  std::cout << "Process co-variance initialization complete" << std::endl;
 
   ekf_.Init(initialState, stateCovariance, stateTransition, processCovariance);
+  previous_timestamp_ = measurement.timestamp_;
+  std::cout << "Filter initialization complete" << std::endl;
   is_initialized_ = true;
 }
 
