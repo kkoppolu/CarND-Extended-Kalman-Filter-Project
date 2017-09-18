@@ -21,7 +21,6 @@ void KalmanFilter::Init(VectorXd &x_in, MatrixXd &P_in, MatrixXd &F_in,
 }
 
 void KalmanFilter::Predict() {
-  std::cout << "****************PREDICT********************" << std::endl;
   x_ = F_ * x_;
   P_ = (F_ * P_) * F_.transpose() + Q_;
 }
@@ -46,23 +45,27 @@ void KalmanFilter::UpdateEKF(const VectorXd &z,
 			     const MatrixXd& Hj,
 			     const MatrixXd& R) 
 {
-  std::cout << "Updating using EKF" << std::endl;
+  std::cout << "**********Updating using EKF****************" << std::endl;
   // convert from cartesian predictions to polar measurements
-  const float px = x_[0];
-  const float py = x_[1];
-  const float vx = x_[2];
-  const float vy = x_[3];
-  const float rho = sqrt(pow(px,2) + pow(py, 2));
-  float phi = 0;
-  if (py > Tools::EPS_ || px > Tools::EPS_) {
-    phi = atan2(py, px);
+  double px = x_[0];
+  double py = x_[1];
+  const double vx = x_[2];
+  const double vy = x_[3];
+  const double rho = sqrt(pow(px,2) + pow(py, 2));
+
+  if (std::abs(py) < Tools::EPS_ && std::abs(px) < Tools::EPS_) {
+    px = Tools::EPS_;
+    py = Tools::EPS_;
   }
-  std::cout << "Predicted phi: " << phi << std::endl;
-  const float rhoRate = (px * vx + py * vy) / rho;
+  const double phi = atan2(py, px);
+  const double rhoRate = (px * vx + py * vy) / rho;
+
   VectorXd polarState(3);
   polarState << rho, phi, rhoRate;
   
   VectorXd y = z - polarState;
+  // normalize angle after subtraction
+  y[1] = atan2(sin(y[1]), cos(y[1]));
 
   const MatrixXd Ht = Hj.transpose();
   MatrixXd S = Hj * P_ * Ht + R;

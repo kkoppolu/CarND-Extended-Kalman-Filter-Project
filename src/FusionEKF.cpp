@@ -76,8 +76,8 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     } else if (phi < -Tools::PI_) {
       phi += (2 * Tools::PI_);
     }
-    const float px = rho * cos (phi);
-    const float py = rho * sin (phi);
+    const double px = rho * cos (phi);
+    const double py = rho * sin (phi);
     initialState << px, py, 0, 0;
     std::cout << "State initialization complete: " 
     << "px: " << px << " py: " << py 
@@ -128,14 +128,8 @@ FusionEKF::~FusionEKF() {}
 
 void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) 
 {
-  if (measurement_pack.sensor_type_ != MeasurementPackage::LASER) {
-    std::cout << "Ignoring measurement" << std::endl;
-    return;
-  }
-
-  std::cout << "Processing measurement" << std::endl;
-    // delt in secs
-  const float delt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
+  // delt in secs
+  const double delt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
   previous_timestamp_ = measurement_pack.timestamp_;
 
   /*****************************************************************************
@@ -145,13 +139,10 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack)
     initFilter(measurement_pack);
     return;
   }
-
-  std::cout << ">>>>>>>>>>>>>TIMESTEP<<<<<<<<<<<<<<<<<<: " << delt << std::endl;
     
   /*****************************************************************************
    *  Prediction
    ****************************************************************************/  
-
   // perform the prediction
   // update the state transition matrix to include the delt
   ekf_.F_(0,2) = delt;
@@ -160,7 +151,6 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack)
   computeProcessCovariance(delt, ekf_);
   ekf_.Predict();
   
-
   /*****************************************************************************
    *  Update
    ****************************************************************************/
@@ -171,11 +161,11 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack)
   } else {
     // use Extended Kalman Filter equations
     // update Jacobian
-    // Hj_ << tools_.CalculateJacobian(ekf_.x_);
-   // ekf_.UpdateEKF(measurement_pack.raw_measurements_, Hj_, R_radar_);
+    Hj_ << tools_.CalculateJacobian(ekf_.x_);
+    ekf_.UpdateEKF(measurement_pack.raw_measurements_, Hj_, R_radar_);
   }
   
   // print the output
   cout << "x_ = \n" << ekf_.x_;
-  cout << "\nP_ = \n" << ekf_.P_ << endl;
+  //cout << "\nP_ = \n" << ekf_.P_ << endl;
 }
