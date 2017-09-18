@@ -67,7 +67,6 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     // record the initial x and y position
     initialState << measurement.raw_measurements_[0], measurement.raw_measurements_[1], 0, 0;
   } else { // if (sensorType == MeasurementPackage::RADAR
-    std::cout << "Initializing using radar measurement" << std::endl;
     // derive the initial x and y positions from the polar co-ordinates
     const float rho = measurement.raw_measurements_[0];
     float phi = measurement.raw_measurements_[1];
@@ -79,13 +78,6 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     const double px = rho * cos (phi);
     const double py = rho * sin (phi);
     initialState << px, py, 0, 0;
-    std::cout << "State initialization complete: " 
-    << "px: " << px << " py: " << py 
-    << std::endl;
-
-    // Radar Jacobian matrix (linear approximation of polar to cartesian)
-    Hj_ << tools_.CalculateJacobian(ekf_.x_);
-    std::cout << "Hj initialization" << std::endl;
   }
 
    // initialize the state transition matrix
@@ -105,7 +97,6 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     0, 1, 0, 0,
     0, 0, 1000, 0,
     0, 0, 0, 1000;
-  std::cout << "State co-variance initialization complete" << std::endl;
 
   MatrixXd processCovariance(4,4);
   // since delt is 0, this will all be 0s (no acceleration noise)
@@ -114,10 +105,11 @@ FusionEKF::initFilter(const MeasurementPackage& measurement)
     0, 0, 0, 0,
     0, 0, 0, 0,
     0, 0, 0, 0;
-  std::cout << "Process co-variance initialization complete" << std::endl;
 
   ekf_.Init(initialState, stateCovariance, stateTransition, processCovariance);
-  std::cout << "Filter initialization complete" << std::endl;
+  // Radar Jacobian matrix (linear approximation of polar to cartesian)
+  Hj_ << tools_.CalculateJacobian(ekf_.x_);
+  
   is_initialized_ = true;
 }
 
@@ -167,5 +159,5 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack)
   
   // print the output
   cout << "x_ = \n" << ekf_.x_;
-  //cout << "\nP_ = \n" << ekf_.P_ << endl;
+  cout << "\nP_ = \n" << ekf_.P_ << endl;
 }

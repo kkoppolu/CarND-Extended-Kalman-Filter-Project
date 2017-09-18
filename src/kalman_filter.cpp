@@ -30,7 +30,6 @@ KalmanFilter::Update(const Eigen::VectorXd &z,
 		     const Eigen::MatrixXd& H,
 		     const Eigen::MatrixXd& R)
 {
-  std::cout << "*************Updating using KF****************" << std::endl;
   VectorXd y = z - H * x_;
   const MatrixXd Ht = H.transpose();
   MatrixXd S = H * P_ * Ht + R;
@@ -45,7 +44,6 @@ void KalmanFilter::UpdateEKF(const VectorXd &z,
 			     const MatrixXd& Hj,
 			     const MatrixXd& R) 
 {
-  std::cout << "**********Updating using EKF****************" << std::endl;
   // convert from cartesian predictions to polar measurements
   double px = x_[0];
   double py = x_[1];
@@ -58,7 +56,10 @@ void KalmanFilter::UpdateEKF(const VectorXd &z,
     py = Tools::EPS_;
   }
   const double phi = atan2(py, px);
-  const double rhoRate = (px * vx + py * vy) / rho;
+  double rhoRate = 0;
+  if (std::abs(rho) > Tools::EPS_) {
+    rhoRate = (px * vx + py * vy) / rho;
+  }
 
   VectorXd polarState(3);
   polarState << rho, phi, rhoRate;
